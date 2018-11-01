@@ -2,6 +2,11 @@ locals {
   assume_account = "${var.external_id == "" ?
                       data.aws_iam_policy_document.assume_account.json :
                       data.aws_iam_policy_document.assume_account_external_id.json}"
+
+  role_arn         = "${element(concat(aws_iam_role.role.*.arn, list("")), 0)}"
+  role_id          = "${element(concat(aws_iam_role.role.*.id, list("")), 0)}"
+  role_name        = "${element(concat(aws_iam_role.role.*.name, list("")), 0)}"
+  instance_profile = "${element(concat(aws_iam_instance_profile.instance_profile.*.name, list("")), 0)}"
 }
 
 data "aws_iam_policy_document" "assume_account_external_id" {
@@ -58,21 +63,21 @@ resource "aws_iam_role_policy" "role_policy" {
   count = "${var.build_state ? var.inline_policy_count : 0}"
 
   name   = "${var.name}InlinePolicy${count.index}"
-  role   = "${aws_iam_role.role.id}"
+  role   = "${local.role_id}"
   policy = "${element(var.inline_policy, count.index)}"
 }
 
 resource "aws_iam_role_policy_attachment" "attach_managed_policy" {
   count = "${var.build_state ? var.policy_arns_count : 0}"
 
-  role       = "${aws_iam_role.role.name}"
+  role       = "${local.role_name}"
   policy_arn = "${element(var.policy_arns, count.index)}"
 }
 
 resource "aws_iam_instance_profile" "instance_profile" {
   count = "${var.build_state && contains(var.aws_service, "ec2.amazonaws.com") ? 1 : 0}"
 
-  name_prefix = "${aws_iam_role.role.name}"
-  role        = "${aws_iam_role.role.name}"
+  name_prefix = "${local.role_name}"
+  role        = "${local.role_name}"
   path        = "/"
 }
